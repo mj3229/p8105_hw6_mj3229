@@ -178,6 +178,8 @@ ggplot(bootstrap_results, aes(x = beta1_beta2)) +
   )
 ```
 
+The distribution of beta1/beta2 ratio is left-skewed with a wider range. There is much more variation here than R^2. The beta2 value is typically smaller because we are looking at effect of precipitation on tmax. Dividing by smaller number leaves results in large negative values as final answer, illustrated by the center of the distribution. The distribution is highly variable and unstable compared to R^2. 
+
 Distribution of estimates for R2
 ```{r}
 ggplot(bootstrap_results, aes(x = r2)) +
@@ -186,6 +188,8 @@ ggplot(bootstrap_results, aes(x = r2)) +
        x = "R²",
        y = "Frequency")
 ```
+
+The distribution for R^2 is approximately symmetric and seems normal. It seems to centered around 0.942 and has a tight fit. This may indicate that overall model fit is highly stable across the bootstrap samples. 
 
 Identify the 2.5% and 97.5% quantiles
 ```{r}
@@ -199,5 +203,11 @@ bootstrap_results %>%
   )
 
 knitr::kable(bootstrap_quantile, digits = 3)
+```
+
+## Problem 3
+```{r}
+birthweight_df = read_csv("data/birthweight.csv") %>% 
+  janitor::clean_names()
 ```
 
