@@ -208,6 +208,35 @@ knitr::kable(bootstrap_quantile, digits = 3)
 ## Problem 3
 ```{r}
 birthweight_df = read_csv("data/birthweight.csv") %>% 
-  janitor::clean_names()
+  janitor::clean_names() %>%                                   
+  mutate(
+    babysex = as.factor(babysex),                               
+    frace = as.factor(frace),                                  
+    malform = as.factor(malform),                               
+    mrace = as.factor(mrace)                                    
+  )
+
+sum(is.na(birthweight_df))                                  
+```
+
+Regression Model for Birthweight
+
+```{r}
+birth_model =
+  birthweight_df %>% 
+  lm(bwt ~ bhead + blength + gaweeks + babysex + smoken + wtgain, data = .)
+```
+
+**Residuals vs Fitted Values Plot**
+
+```{r}
+birthweight_df %>% 
+  modelr::add_predictions(birth_model) %>% 
+  modelr::add_residuals(birth_model) %>%  
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() + 
+  labs(title = "Residuals vs. Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") 
 ```
 
