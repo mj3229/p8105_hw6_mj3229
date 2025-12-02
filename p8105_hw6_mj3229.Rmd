@@ -9,11 +9,12 @@ library(tidyverse)
 library(ggplot2)
 library(knitr)
 library(rvest)
+library(modelr)
 
 knitr::opts_chunk$set(
 	echo = TRUE,
 	warning = FALSE,
-  fig.width = 6,
+  fig.width = 10,
   fig.asp = .6,
   out.width = "90%"
 )
@@ -32,4 +33,171 @@ set.seed(1)
 ```
 
 ## Problem 1
+
+```{r}
+library(tidyverse)
+
+homicides_df = read_csv("data/homicide-data.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(
+    city_state = str_c(city, ", ", state), 
+    resolved = if_else(disposition == "Closed by arrest", 1, 0),
+    victim_age = as.numeric(victim_age)
+  ) %>% 
+  filter(
+    !city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"),
+    victim_race %in% c("White", "Black")
+  )
+```
+
+**Baltimore, MD** 
+```{r}
+baltimore_glm = 
+  homicides_df %>% 
+  filter(city_state == "Baltimore, MD") %>% 
+  glm(resolved ~ victim_age + victim_sex + victim_race,
+      family = binomial(),
+      data = .)
+
+baltimore_glm %>% 
+  broom::tidy() %>% 
+  mutate(
+    odds_ratio = exp(estimate),
+    ci_upper_odds_ratio = exp(estimate + 1.96 * std.error),
+    ci_lower_odds_ratio = exp(estimate - 1.96 * std.error)
+  ) %>% 
+  filter(term == "victim_sexMale") %>% 
+  select(odds_ratio, ci_lower_odds_ratio, ci_upper_odds_ratio) %>%  
+  knitr::kable(digits = 3)
+```
+
+**Linear models for all states**
+
+```{r}
+cities_glm = 
+  homicides_df %>% 
+  nest(data = -city_state) %>% 
+  mutate(
+    models = map(data, ~ glm(
+      resolved ~ victim_age + victim_sex + victim_race,
+      family = binomial(),
+      data = .x
+    )),
+    tidy_models = map(models, broom::tidy)
+  ) %>% 
+  unnest(cols = tidy_models) %>% 
+  mutate(
+    odds_ratio = exp(estimate),
+    ci_upper_odds_ratio = exp(estimate + 1.96 * std.error),
+    ci_lower_odds_ratio = exp(estimate - 1.96 * std.error)
+  ) %>% 
+  filter(term == "victim_sexMale") %>% 
+  select(city_state, odds_ratio, ci_lower_odds_ratio, ci_upper_odds_ratio)
+
+cities_glm %>% 
+  knitr::kable(digits = 3)
+```
+
+**All Cities OR and CI Plot**
+```{r}
+cities_glm %>% 
+  mutate(city_state = fct_reorder(city_state, odds_ratio)) %>% 
+  ggplot(aes(x = city_state, y = odds_ratio)) +
+  geom_point(size = 2) +
+  geom_errorbar(
+    aes(ymin = ci_lower_odds_ratio, ymax = ci_upper_odds_ratio),
+    width = 0
+  ) +
+  coord_flip() +
+  labs(
+    title = "Adjusted OR and CI for Solving Homicides (Male vs Female) by City",
+    x = "City",
+    y = "Adjusted Odds Ratio (with 95% CI)"
+  ) +
+  theme_minimal(base_size = 12) 
+```
+
+## Problem 2
+
+```{r}
+library(p8105.datasets)
+data("weather_df")
+
+weather_df =
+  weather_df %>%
+  mutate(
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    prcp = prcp / 10
+  ) %>%
+  drop_na(tmin, tmax, prcp) %>%
+  arrange(date)
+```
+
+Bootstrapping
+```{r}
+boot_rsq = function(fit) {
+  fit %>% 
+    broom::glance() %>% 
+    pull(r.squared)
+}
+
+boot_beta = function(fit) {
+  coefs = broom::tidy(fit)
+  beta1 = coefs %>%  
+    filter(term == "tmin") %>%  
+    pull(estimate)
+  beta2 = coefs %>%  
+    filter(term == "prcp") %>% 
+    pull(estimate)
+  beta1 / beta2
+}
+```
+
+5000 samples and estimates of 𝑟̂2 and𝛽̂ 1/𝛽̂ 2
+```{r}
+bootstrap_results =
+  weather_df %>% 
+  bootstrap(5000) %>% 
+  mutate(
+    models = map(strap, \(x) lm(tmax ~ tmin + prcp, data = x)),
+    r2 = map_dbl(models, boot_rsq),
+    beta1_beta2 = map_dbl(models, boot_beta)
+  ) %>% 
+  select(r2, beta1_beta2)
+```
+
+Distribution of estimates for Beta 
+```{r}
+ggplot(bootstrap_results, aes(x = beta1_beta2)) +
+  geom_histogram(bins = 30, fill = "black", alpha = 0.7, color = "white") +
+  labs(
+    title = "Bootstrap Distribution of Beta1/Beta2",
+    x = expression(beta[1] / beta[2]),
+    y = "Frequency"
+  )
+```
+
+Distribution of estimates for R2
+```{r}
+ggplot(bootstrap_results, aes(x = r2)) +
+  geom_histogram(bins = 30, fill = "black", color = "white") +
+  labs(title = "Bootstrap Distribution of R²",
+       x = "R²",
+       y = "Frequency")
+```
+
+Identify the 2.5% and 97.5% quantiles
+```{r}
+bootstrap_quantile =
+bootstrap_results %>% 
+  summarize(
+    r2_low = quantile(r2, 0.025),
+    r2_high = quantile(r2, 0.975),
+    beta_low = quantile(beta1_beta2, 0.025),
+    beta_high = quantile(beta1_beta2, 0.975)
+  )
+
+knitr::kable(bootstrap_quantile, digits = 3)
+```
 
