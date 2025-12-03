@@ -116,6 +116,7 @@ cities_glm %>%
   ) +
   theme_minimal(base_size = 12) 
 ```
+The plot shows how adjusted odds ratios vary across the different cities. Most cities have an OR which is close to 1, indicating little differentiation in solve rates between male and female victims. However, because the confidence intervals cross 1, uncertainty is wide in many of the cities. This also indicates that difference may not be statistically significant. Specifically, Albuquerque, NM has the highest point estimates and CI is very wide. Overall, male victim homicides are more likely to be solved than female-victim homicides if OR is above 1 (in most).Places like Baltimore and Baron Rouge are opposite with OR below 1 meaning the opposite: female victims have slightly higher clearance in these areas. 
 
 ## Problem 2
 
@@ -189,7 +190,7 @@ ggplot(bootstrap_results, aes(x = r2)) +
        y = "Frequency")
 ```
 
-The distribution for R^2 is approximately symmetric and seems normal. It seems to centered around 0.942 and has a tight fit. This may indicate that overall model fit is highly stable across the bootstrap samples. 
+The distribution for R^2 is approximately symmetric and seems normal. It seems to be centered around 0.942 and has a tight fit. This may indicate that overall model fit is highly stable across the bootstrap samples. 
 
 Identify the 2.5% and 97.5% quantiles
 ```{r}
@@ -226,6 +227,8 @@ birth_model =
   birthweight_df %>% 
   lm(bwt ~ bhead + blength + gaweeks + babysex + smoken + wtgain, data = .)
 ```
+For the regression model that I created for birthweight, I focused mainly on biological reasoning/factors. Things that would directly influence birthweight such as head circumference, birth length, etc. I also added gestational age because infants typically born after more weeks weigh more. Lastly, I also incorporated maternal and demographic factors like baby sex and smoking during pregnancy because those do play a factor usually in weight. Specifically, smoking may result in reduced growth. All these variables are predictors with biological reasoning while trying to keep it as simple as I can. 
+
 
 **Residuals vs Fitted Values Plot**
 
@@ -259,7 +262,7 @@ cv_df =
     train = map(train, as_tibble),
     test = map(test, as_tibble)) %>% 
   mutate(
-    mod_mod = map(train, ~lm(bwt ~ bhead + blength + gaweeks + delwt + smoken + wtgain + malform + ppbmi + babysex + momage + parity, data = .x)),
+   mod_mod = map(train, ~ lm(bwt ~ bhead + blength + gaweeks + babysex + smoken +    wtgain, data = .x)),
     comp2_mod = map(train, ~lm(bwt ~ gaweeks + blength, data = .x)),
     comp3_mod = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead * blength + bhead * babysex + blength * babysex + bhead * blength * babysex, data = .x))
   ) %>% 
@@ -276,4 +279,4 @@ cv_df %>%
   knitr::kable(digits = 3)
 ```
 
-Comparing the three models, model 1 shoes the lowest RMSE, indicating the most accurate prediction for birthweight. The second model which includes length at birth and gestational age as predictors had the highest RMSE. Becuase it is a simpler model, might be the least accurate and reliable for birthweight. Lastly, model 3 which included head circumference, length, sex, and all interactions between these, had RMSE between the two other models. Despite the interaction, it didn't improve accuracy. From this, overal model 1 has the best balance of accuracy compared to the more complex and simple model. 
+Comparing the three models, model 1 shows the lowest RMSE, indicating the most accurate prediction for birthweight. The second model which includes length at birth and gestational age as predictors had the highest RMSE. Because it is a simpler model, might be the least accurate and reliable for birthweight. Lastly, model 3 which included head circumference, length, sex, and all interactions between these, had RMSE between the two other models. Despite the interaction, it didn't improve accuracy. From this, overall model 1 has the best balance of accuracy compared to the more complex and simple model. 
